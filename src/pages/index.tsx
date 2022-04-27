@@ -2,9 +2,24 @@ import type { NextPage } from 'next'
 import { FormEvent, useCallback, useState } from 'react'
 import { SearchResults } from '../components/SearchResults'
 
+type Product = {
+  id: number
+  title: string
+  price: number
+  priceFormatted: string
+}
+
+type Results = {
+  totalPrice: number
+  data: Product[]
+}
+
 const Home: NextPage = () => {
   const [search, setSearch] = useState('')
-  const [results, setReults] = useState([])
+  const [results, setReults] = useState<Results>({
+    totalPrice: 0,
+    data: []
+  })
 
   async function handleSearch(event: FormEvent) {
     event.preventDefault()
@@ -12,9 +27,27 @@ const Home: NextPage = () => {
     if (!search.trim()) return
 
     const response = await fetch(`http://localhost:3333/products?q=${search}`)
-    const data = await response.json()
+    const data: Product[] = await response.json()
 
-    setReults(data)
+    const formatter = new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    })
+
+    const products = data.map(product => {
+      return {
+        id: product.id,
+        title: product.title,
+        price: product.price,
+        priceFormatted: formatter.format(product.price)
+      }
+    })
+
+    const totalPrice = data.reduce((acc, cur) => {
+      return acc + cur.price;
+    }, 0)
+
+    setReults({ totalPrice, data: products })
   }
 
   const addToWishlist = useCallback(async (id: number) => {
@@ -36,7 +69,8 @@ const Home: NextPage = () => {
       </form>
 
       <SearchResults
-        results={results}
+        results={results.data}
+        totalPrice={results.totalPrice}
         onAddToWishlist={addToWishlist}
       />
     </div>
